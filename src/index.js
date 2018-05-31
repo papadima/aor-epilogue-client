@@ -24,13 +24,27 @@ const { queryParameters, fetchJson } = fetchUtils;
  * CREATE       => POST http://my.api.url/posts/123
  * DELETE       => DELETE http://my.api.url/posts/123
  */
-export default (apiUrl, httpClient = fetchJson) => {
+export default (apiUrl, httpClient = fetchJson, idsMapConfig = {}) => {
   /**
-     * @param {String} type One of the constants appearing at the top if this file, e.g. 'UPDATE'
-     * @param {String} resource Name of the resource to fetch, e.g. 'posts'
-     * @param {Object} params The REST request params, depending on the type
-     * @returns {Object} { url, options } The HTTP request parameters
-     */
+   * @param {Object} params Actual names of the id fields, depending on the resource name
+   * @returns {String} Searched name of the id field
+   */
+  const getIdKey = ({ resource, idsMap = {} }) => idsMap[resource]
+    || Object.entries(idsMap).reduce((r, [k, v]) => {
+      const m = resource.match(new RegExp(k));
+      if (m && m[0] === resource) {
+        return v;
+      }
+      return r;
+    }, undefined)
+    || 'id';
+
+  /**
+   * @param {String} type One of the constants appearing at the top if this file, e.g. 'UPDATE'
+   * @param {String} resource Name of the resource to fetch, e.g. 'posts'
+   * @param {Object} params The REST request params, depending on the type
+   * @returns {Object} { url, options } The HTTP request parameters
+   */
   const convertRESTRequestToHTTP = (type, resource, params) => {
     let url = '';
     const options = {};
@@ -83,15 +97,16 @@ export default (apiUrl, httpClient = fetchJson) => {
   };
 
   /**
-     * @param {Object} response HTTP response from fetch()
-     * @param {String} type One of the constants appearing at the top if this file, e.g. 'UPDATE'
-     * @param {String} resource Name of the resource to fetch, e.g. 'posts'
-     * @param {Object} params The REST request params, depending on the type
-     * @returns {Object} REST response
-     */
+   * @param {Object} response HTTP response from fetch()
+   * @param {String} type One of the constants appearing at the top if this file, e.g. 'UPDATE'
+   * @param {String} resource Name of the resource to fetch, e.g. 'posts'
+   * @param {Object} params The REST request params, depending on the type
+   * @returns {Object} REST response
+   */
   const convertHTTPResponseToREST = (response, type, resource, params) => {
     const { headers, json } = response;
     const headerName = 'Content-Range';
+    const idKey = getIdKey({ resource, idsMap: idsMapConfig });
     switch (type) {
       case GET_LIST:
       case GET_MANY_REFERENCE:
@@ -99,22 +114,22 @@ export default (apiUrl, httpClient = fetchJson) => {
           throw new Error(`The ${headerName} header is missing in the HTTP Response. The jsonServer REST client expects responses for lists of resources to contain this header with the total number of results to build the pagination. If you are using CORS, did you declare ${headerName} in the Access-Control-Expose-Headers header? Example ${headerName} value: items 0-9/100`);
         }
         return {
-          data: json,
+          data: json.map(item => ({ ...item, id: item[idKey] })),
           total: parseInt(headers.get(headerName).split('/').pop(), 10),
         };
       case CREATE:
         return { data: { ...params.data, id: json.id } };
       default:
-        return { data: json };
+        return { data: { ...json, id: json[idKey] } };
     }
   };
 
   /**
-     * @param {string} type Request type, e.g GET_LIST
-     * @param {string} resource Resource name, e.g. "posts"
-     * @param {Object} payload Request parameters. Depends on the request type
-     * @returns {Promise} the Promise for a REST response
-     */
+   * @param {string} type Request type, e.g GET_LIST
+   * @param {string} resource Resource name, e.g. "posts"
+   * @param {Object} payload Request parameters. Depends on the request type
+   * @returns {Promise} the Promise for a REST response
+   */
   return (type, resource, params) => {
     // json-server doesn't handle WHERE IN requests, so we fallback to calling GET_ONE n times instead
     if (type === GET_MANY) {
