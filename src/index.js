@@ -1,5 +1,5 @@
-import { queryParameters, fetchJson } from 'admin-on-rest/lib/util/fetch';
 import {
+  fetchUtils,
   GET_LIST,
   GET_ONE,
   GET_MANY,
@@ -7,7 +7,9 @@ import {
   CREATE,
   UPDATE,
   DELETE,
-} from 'admin-on-rest/lib/rest/types';
+} from 'admin-on-rest';
+
+const { queryParameters, fetchJson } = fetchUtils;
 
 /**
  * Maps admin-on-rest queries to a epilogue powered REST API
@@ -32,9 +34,7 @@ export default (apiUrl, httpClient = fetchJson) => {
   const convertRESTRequestToHTTP = (type, resource, params) => {
     let url = '';
     const options = {};
-    const sortValue = ({field, order}) => {
-      return order === 'DESC' ? `-${field}` : field;
-    };
+    const sortValue = ({ field, order }) => (order === 'DESC' ? `-${field}` : field);
     switch (type) {
       case GET_LIST: {
         const { page, perPage } = params.pagination;
@@ -91,14 +91,12 @@ export default (apiUrl, httpClient = fetchJson) => {
      */
   const convertHTTPResponseToREST = (response, type, resource, params) => {
     const { headers, json } = response;
+    const headerName = 'Content-Range';
     switch (type) {
       case GET_LIST:
       case GET_MANY_REFERENCE:
-        const headerName = 'Content-Range';
         if (!headers.has(headerName)) {
-          throw new Error(
-            `The ${headerName} header is missing in the HTTP Response. The jsonServer REST client expects responses for lists of resources to contain this header with the total number of results to build the pagination. If you are using CORS, did you declare ${headerName} in the Access-Control-Expose-Headers header? Example ${headerName} value: items 0-9/100`,
-          );
+          throw new Error(`The ${headerName} header is missing in the HTTP Response. The jsonServer REST client expects responses for lists of resources to contain this header with the total number of results to build the pagination. If you are using CORS, did you declare ${headerName} in the Access-Control-Expose-Headers header? Example ${headerName} value: items 0-9/100`);
         }
         return {
           data: json,
@@ -120,13 +118,12 @@ export default (apiUrl, httpClient = fetchJson) => {
   return (type, resource, params) => {
     // json-server doesn't handle WHERE IN requests, so we fallback to calling GET_ONE n times instead
     if (type === GET_MANY) {
-      return Promise.all(
-        params.ids.map(id => httpClient(`${apiUrl}/${resource}/${id}`)),
-      ).then(responses => ({ data: responses.map(response => response.json) }));
+      return Promise
+        .all(params.ids.map(id => httpClient(`${apiUrl}/${resource}/${id}`)))
+        .then(responses => ({ data: responses.map(response => response.json) }));
     }
     const { url, options } = convertRESTRequestToHTTP(type, resource, params);
-    return httpClient(url, options).then(response =>
-      convertHTTPResponseToREST(response, type, resource, params),
-    );
+    return httpClient(url, options)
+      .then(response => convertHTTPResponseToREST(response, type, resource, params));
   };
 };

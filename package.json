@@ -1,11 +1,12 @@
 {
   "name": "aor-epilogue-extended-client",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Extended Epilogue client for admin-on-rest",
   "main": "lib/index.js",
   "scripts": {
     "compile": "babel --source-maps -d lib/ src/",
     "prepublishOnly": "npm run compile",
+    "lint": "eslint .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "files": [
@@ -38,6 +39,9 @@
   "devDependencies": {
     "@babel/cli": "^7.0.0-beta.49",
     "@babel/core": "^7.0.0-beta.49",
-    "@babel/preset-env": "^7.0.0-beta.49"
+    "@babel/preset-env": "^7.0.0-beta.49",
+    "eslint": "^4.19.1",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.12.0"
   }
 }
