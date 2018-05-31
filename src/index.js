@@ -125,7 +125,7 @@ export default (apiUrl, httpClient = fetchJson, idsMapConfig = {}) => {
         };
       default:
         return {
-          data: { ...json, id: json[idKey] },
+          data: json ? { ...json, id: json[idKey] } : null,
           body,
         };
     }
