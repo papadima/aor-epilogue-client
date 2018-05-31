@@ -104,7 +104,7 @@ export default (apiUrl, httpClient = fetchJson, idsMapConfig = {}) => {
    * @returns {Object} REST response
    */
   const convertHTTPResponseToREST = (response, type, resource, params) => {
-    const { headers, json } = response;
+    const { headers, json, body } = response;
     const headerName = 'Content-Range';
     const idKey = getIdKey({ resource, idsMap: idsMapConfig });
     switch (type) {
@@ -115,12 +115,19 @@ export default (apiUrl, httpClient = fetchJson, idsMapConfig = {}) => {
         }
         return {
           data: json.map(item => ({ ...item, id: item[idKey] })),
+          body,
           total: parseInt(headers.get(headerName).split('/').pop(), 10),
         };
       case CREATE:
-        return { data: { ...params.data, id: json.id } };
+        return {
+          data: { ...params.data, id: json.id },
+          body,
+        };
       default:
-        return { data: { ...json, id: json[idKey] } };
+        return {
+          data: { ...json, id: json[idKey] },
+          body,
+        };
     }
   };
 
